@@ -23,14 +23,18 @@ extern inline volatile void oom(void)
 	do_exit(SIGSEGV);
 }
 
+// 使用mov 加载 cr3 会让tlb失效
 #define invalidate() \
 __asm__("movl %%eax,%%cr3"::"a" (0))
 
 /* these are not to be changed without changing head.s etc */
 #define LOW_MEM 0x100000
 extern unsigned long HIGH_MEMORY;
+// 仅支持16MB内存，其中低1MB留给系统
 #define PAGING_MEMORY (15*1024*1024)
+// 16MB中剩余的15MB内存一共可以分的页数
 #define PAGING_PAGES (PAGING_MEMORY>>12)
+// addr 地址所在的页面，mem_map中的下标
 #define MAP_NR(addr) (((addr)-LOW_MEM)>>12)
 #define USED 100
 

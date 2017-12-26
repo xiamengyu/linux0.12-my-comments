@@ -25,15 +25,16 @@
 
 void show_task(int nr,struct task_struct * p)
 {
-	int i,j = 4096-sizeof(struct task_struct);
+	int i,j = 4096-sizeof(struct task_struct); //j是一个task的栈大小(一页中除了task_struct剩余的部分)
 
 	printk("%d: pid=%d, state=%d, father=%d, child=%d, ",nr,p->pid,
 		p->state, p->p_pptr->pid, p->p_cptr ? p->p_cptr->pid : -1);
 	i=0;
+	// 计算剩余栈大小  !((char *)(p+1))[i]代表空闲的栈是null???
 	while (i<j && !((char *)(p+1))[i])
 		i++;
 	printk("%d/%d chars free in kstack\n\r",i,j);
-	printk("   PC=%08X.", *(1019 + (unsigned long *) p));
+	printk("   PC=%08X.", *(1019 + (unsigned long *) p));//??
 	if (p->p_ysptr || p->p_osptr) 
 		printk("   Younger sib=%d, older sib=%d\n\r", 
 			p->p_ysptr ? p->p_ysptr->pid : -1,
@@ -130,10 +131,12 @@ void schedule(void)
 				if ((*p)->state == TASK_INTERRUPTIBLE)
 					(*p)->state = TASK_RUNNING;
 			}
+			// 如果alarm定时到了，则设置SIGALARM信号
 			if ((*p)->alarm && (*p)->alarm < jiffies) {
 				(*p)->signal |= (1<<(SIGALRM-1));
 				(*p)->alarm = 0;
 			}
+			// 有信号则唤醒进程，如果是非_BLOCKABLE信号(SIGKILL,SIGSTOP)不允许阻塞，一定唤醒
 			if (((*p)->signal & ~(_BLOCKABLE & (*p)->blocked)) &&
 			(*p)->state==TASK_INTERRUPTIBLE)
 				(*p)->state=TASK_RUNNING;
@@ -176,10 +179,16 @@ static inline void __sleep_on(struct task_struct **p, int state)
 		return;
 	if (current == &(init_task.task))
 		panic("task[0] trying to sleep");
+	// 临时保存之前的正在等待的task
 	tmp = *p;
+	// 将*p指向当前task
 	*p = current;
+	// 当前进程进入等待状态
 	current->state = state;
 repeat:	schedule();
+	/*
+		这种情况怎么发生的,对于sleep_on 之前cli的情况，*p就是调用这个函数时进来时的task
+	*/
 	if (*p && *p != current) {
 		(**p).state = 0;
 		current->state = TASK_UNINTERRUPTIBLE;
@@ -187,6 +196,9 @@ repeat:	schedule();
 	}
 	if (!*p)
 		printk("Warning: *P = NULL\n\r");
+	// 此时 *p == current,也就是，上一次替换*p指向时，就是是当前进程干的，也就是等待的是当前进程
+
+	// 当前进程继续运行，并且，将进入这个函数时保存的tmp(是上上一次进入这个函数的*p)还原给*p
 	if (*p = tmp)
 		tmp->state=0;
 }
@@ -298,6 +310,7 @@ void add_timer(long jiffies, void (*fn)(void))
 	if (jiffies <= 0)
 		(fn)();
 	else {
+		// 遍历到定时器列表第一个空定时器（没有设置fn）
 		for (p = timer_list ; p < timer_list + TIME_REQUESTS ; p++)
 			if (!p->fn)
 				break;

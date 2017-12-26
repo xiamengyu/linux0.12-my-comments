@@ -46,6 +46,7 @@ SWAP_DEV = 0
 
 entry start
 start:
+    ! mov到段寄存器，需要先mov到ax中转
 	mov	ax,#BOOTSEG
 	mov	ds,ax
 	mov	ax,#INITSEG
@@ -53,10 +54,13 @@ start:
 	mov	cx,#256
 	sub	si,si
 	sub	di,di
+	! rep movw 将 ds:si 移动到 es:si cx次
 	rep
 	movw
+	! jmpi 段间跳转，因为代码已经复制到INITSEG段
 	jmpi	go,INITSEG
 
+! 因为执行的段间跳转，重新设置下段ds,es,ss与当前cs在一个段
 go:	mov	ax,cs		
 	mov	dx,#0xfef4	! arbitrary value >>512 - disk parm size
 

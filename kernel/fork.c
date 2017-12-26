@@ -49,6 +49,7 @@ int copy_mem(int nr,struct task_struct * p)
 		panic("We don't support separate I&D");
 	if (data_limit < code_limit)
 		panic("Bad data_limit");
+	// 基地址是nr * TASK_SIZE !!
 	new_data_base = new_code_base = nr * TASK_SIZE;
 	p->start_code = new_code_base;
 	set_base(p->ldt[1],new_code_base);
@@ -144,12 +145,15 @@ int find_empty_process(void)
 {
 	int i;
 
+	// 分配pid, 为last_pid + 1，如果已经存在则继续分配
 	repeat:
 		if ((++last_pid)<0) last_pid=1;
 		for(i=0 ; i<NR_TASKS ; i++)
 			if (task[i] && ((task[i]->pid == last_pid) ||
 				        (task[i]->pgrp == last_pid)))
 				goto repeat;
+	// 找到可用进程控制块索引
+	// 进程控制块用光了会死循环？？，返回EAGAIN
 	for(i=1 ; i<NR_TASKS ; i++)
 		if (!task[i])
 			return i;

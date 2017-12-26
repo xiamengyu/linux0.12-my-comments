@@ -236,6 +236,7 @@ __asm__("cmpl %%ecx,_current\n\t" \
 
 #define PAGE_ALIGN(n) (((n)+0xfff)&0xfffff000)
 
+// 设置addr处段描述符的基地址为base
 #define _set_base(addr,base) \
 __asm__("movw %%dx,%0\n\t" \
 	"rorl $16,%%edx\n\t" \
@@ -262,6 +263,7 @@ __asm__("movw %%dx,%0\n\t" \
 #define set_base(ldt,base) _set_base( ((char *)&(ldt)) , base )
 #define set_limit(ldt,limit) _set_limit( ((char *)&(ldt)) , (limit-1)>>12 )
 
+// 获取段描述符addr中的base地址, addr是逻辑地址? 偏移地址?
 #define _get_base(addr) ({\
 unsigned long __base; \
 __asm__("movb %3,%%dh\n\t" \
@@ -276,6 +278,7 @@ __base;})
 
 #define get_base(ldt) _get_base( ((char *)&(ldt)) )
 
+// lsll 加载段描述符中的 限长
 #define get_limit(segment) ({ \
 unsigned long __limit; \
 __asm__("lsll %1,%0\n\tincl %0":"=r" (__limit):"r" (segment)); \
